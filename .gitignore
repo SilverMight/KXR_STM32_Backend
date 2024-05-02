@@ -1,0 +1,14 @@
+# Ignore binary files
+*.bin
+*.elf
+*.map
+
+# Ignore generated files
+/Debug/
+/Release/
+/.metadata/
+
+# Ignore debug settings
+*.launch
+
+
