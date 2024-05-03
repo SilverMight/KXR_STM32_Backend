@@ -11,4 +11,5 @@
 # Ignore debug settings
 *.launch
 
-
+# Ignore clangd cache
+.cache/

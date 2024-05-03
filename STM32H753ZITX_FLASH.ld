@@ -43,7 +43,7 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-  FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 128K
+  FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 2048K
   DTCMRAM (xrw)  : ORIGIN = 0x20000000, LENGTH = 128K
   RAM_D1 (xrw)   : ORIGIN = 0x24000000, LENGTH = 512K
   RAM_D2 (xrw)   : ORIGIN = 0x30000000, LENGTH = 288K
@@ -167,18 +167,20 @@ SECTIONS
   } >RAM_D1
   
   
+
   /* Modification start */
   .lwip_sec (NOLOAD) :
   {
-    . = ABSOLUTE(0x30040000);
+    . = ABSOLUTE(0x30000000);
     *(.RxDecripSection) 
     
-    . = ABSOLUTE(0x30040060);
+    . = ABSOLUTE(0x30000080);
     *(.TxDecripSection)
     
-    . = ABSOLUTE(0x30040200);
+    . = ABSOLUTE(0x30000100);
     *(.Rx_PoolSection)  
-  } >RAM_D2 
+  } >RAM_D2
+  /* Modification end */
   /* Modification end */
 
   /* Remove information from the standard libraries */
