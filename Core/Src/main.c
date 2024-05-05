@@ -309,7 +309,7 @@ void StartDefaultTask(void const * argument)
   MX_LWIP_Init();
   /* USER CODE BEGIN 5 */
   /* USER CODE BEGIN 5 */
-  //udp_client_init();
+  udp_client_init();
   tcpserver_init();
 
   for(;;) { osDelay(1); }
