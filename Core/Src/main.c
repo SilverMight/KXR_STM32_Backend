@@ -26,6 +26,7 @@
 #include "lwip/udp.h"
 #include <string.h>
 #include "tcp.h"
+#include "udp.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -308,6 +309,7 @@ void StartDefaultTask(void const * argument)
   MX_LWIP_Init();
   /* USER CODE BEGIN 5 */
   /* USER CODE BEGIN 5 */
+  //udp_client_init();
   tcpserver_init();
 
   for(;;) { osDelay(1); }

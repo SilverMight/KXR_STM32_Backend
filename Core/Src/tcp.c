@@ -6,79 +6,89 @@
  */
 #include "tcp.h"
 
-#include "FreeRTOS.h"
 #include "lwip.h"
-#include "lwip/tcp.h"
 #include "lwip/api.h"
-#include "cmsis_os.h"
+#include "lwip/tcp.h"
+#include "memp.h"
 #include <string.h>
 
-static struct netconn *conn, *newconn;
-static struct netbuf *buf;
-static ip_addr_t *addr;
-static unsigned short port;
-static char msg[100];
-static char smsg[200];
-
-// Static function declarations
-static void tcp_thread(void *arg);
+// Forward declarations
+static err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err);
+static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
+                             err_t err);
 
 void tcpserver_init() {
-	sys_thread_new("tcp_thread", tcp_thread, NULL, DEFAULT_THREAD_STACKSIZE,
-			osPriorityNormal);
+  struct tcp_pcb *tpcb;
+
+  tpcb = tcp_new();
+  if (!tpcb) {
+    return;
+  }
+
+
+  ip_addr_t ipaddr;
+  // WANDA IP
+  IP4_ADDR(&ipaddr, 192, 168, 1, 10);
+
+  
+  if (tcp_bind(tpcb, IP_ADDR_ANY, 35912) != ERR_OK) {
+    memp_free(MEMP_TCP_PCB, tpcb);
+    return;
+  }
+
+
+  tcp_arg(tpcb, NULL);
+
+  tpcb = tcp_listen(tpcb);
+  if(!tpcb) {
+    return;
+  }
+
+
+  tcp_accept(tpcb, accept_callback);
 }
 
-/**** Send RESPONSE every time the client sends some data ******/
-static void tcp_thread(void *arg) {
-	err_t err, accept_err, recv_error;
 
-	/* Create a new connection identifier. */
-	conn = netconn_new(NETCONN_TCP);
+static err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err) {
+  LWIP_UNUSED_ARG(arg);
+  LWIP_UNUSED_ARG(err);
 
-	if (conn != NULL) {
-		/* Bind connection to the port number 7. */
-		err = netconn_bind(conn, IP_ADDR_ANY, 7);
+  tcp_recv(newpcb, tcp_server_recv);
+  tcp_arg(newpcb, NULL);
 
-		if (err == ERR_OK) {
-			/* Tell connection to go into listening mode. */
-			netconn_listen(conn);
 
-			while (1) {
-				/* Grab new connection. */
-				accept_err = netconn_accept(conn, &newconn);
+  return ERR_OK;
+}
 
-				/* Process the new connection. */
-				if (accept_err == ERR_OK) {
+static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
+                             err_t err) {
 
-					/* receive the data from the client */
-					while (netconn_recv(newconn, &buf) == ERR_OK) {
-						/* Extrct the address and port in case they are required */
-						addr = netbuf_fromaddr(buf); // get the address of the client
-						port = netbuf_fromport(buf); // get the Port of the client
+  LWIP_UNUSED_ARG(arg);
 
-						/* If there is some data remaining to be sent, the following process will continue */
-						do {
+  if (!p) {
+    tcp_close(tpcb);
+    tcp_recv(tpcb, NULL);
+    return ERR_OK;
+  }
 
-							strncpy(msg, buf->p->payload, buf->p->len); // get the message from the client
+  tcp_recved(tpcb, p->tot_len);
 
-							// Or modify the message received, so that we can send it back to the client
-							int len = sprintf(smsg,
-									"\"%s\" was sent by the Server\n", msg);
 
-							netconn_write(newconn, smsg, len, NETCONN_COPY); // send the message back to the client
-							memset(msg, '\0', 100);  // clear the buffer
-						} while (netbuf_next(buf) > 0);
+  /* reinterpret as an integer
+     * REQUIRES LITTLE ENDIAN, or htonl()
+  */
+  uint32_t command;
+  memcpy(&command, p->payload, sizeof(uint32_t));
 
-						netbuf_delete(buf);
-					}
+  int reply = (int) command + 1;
+  /* reserialize */
 
-					/* Close connection and discard connection identifier. */
-					netconn_close(newconn);
-					netconn_delete(newconn);
-				}
-			}
-		} else {
-			netconn_delete(conn);
-		}
-	}
+  char newbuf[sizeof(uint32_t)];
+  memcpy(newbuf, &reply, sizeof(uint32_t));
+  err = tcp_write(tpcb, newbuf, sizeof(uint32_t), 1);
+
+  /* free the received pbuf */
+  pbuf_free(p);
+
+  return ERR_OK;
 }
