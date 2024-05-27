@@ -57,9 +57,9 @@ void udp_client_init() {
 static void udpsend_thread() {
 	for (;;) {
 		sprintf(smsg, "index value = %d\n", idx++);
-		SCB_CleanDCache_by_Addr((uint32_t*)(((uint32_t)smsg) & ~(uint32_t)0x1F), sizeof(smsg)+32);
+		//SCB_CleanDCache_by_Addr((uint32_t*)(((uint32_t)smsg) & ~(uint32_t)0x1F), sizeof(smsg)+32);
 		send_data(smsg, strlen(smsg));
-		osDelay(100);
+		osDelay(5);
 	}
 }
 
@@ -73,7 +73,9 @@ int send_data(void * data, int data_size) {
 		return -1;
 	}
 
+	// investigate zero-copy
 	if(pbuf_take(data_packet, data, data_size) != ERR_OK) {
+		pbuf_free(data_packet);
 		return -1;
 	}
 
